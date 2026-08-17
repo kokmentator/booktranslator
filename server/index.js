@@ -277,6 +277,30 @@ app.post("/api/translate-chapter", async (req, res) => {
 app.get("/api/usage", (req, res) => res.json(getUsage()));
 app.post("/api/usage/reset", (req, res) => res.json(resetUsage()));
 
+// --- Author profile (per book) ---
+// Free text about the author — who they are, how they write, what must survive
+// translation. Stored as the book's style/voice.md, so it flows into the same
+// house-style digest every AI call already reads (and the /engine file protocol).
+const authorFile = (book) => path.join(dataDir(book), "style", "voice.md");
+app.get("/api/author", (req, res) => {
+  try {
+    const file = authorFile(bookOf(req));
+    res.json({ book: bookOf(req), text: fs.existsSync(file) ? fs.readFileSync(file, "utf-8") : "" });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+app.post("/api/author", (req, res) => {
+  try {
+    const book = bookOf(req);
+    const text = String(req.body?.text ?? "");
+    if (text.length > 20000) return res.status(400).json({ error: "author notes too long (20k max)" });
+    const file = authorFile(book);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, text, "utf-8");
+    clearRulesCache(); // baked into the rules digest — rebuild on next AI call
+    res.json({ book, saved: true, chars: text.length });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
 // --- Translation style sliders (per book; ?book= scopes them like everything else) ---
 app.get("/api/style", (req, res) => res.json({ book: bookOf(req), values: loadStyle(bookOf(req)), sliders: STYLE_SLIDERS }));
 app.post("/api/style", (req, res) => {

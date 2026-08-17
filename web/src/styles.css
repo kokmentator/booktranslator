@@ -667,3 +667,11 @@ a.masthead__panel { text-decoration: none; display: inline-block; line-height: n
 .style-slider__val { font-size: .78rem; color: #8a8578; font-variant-numeric: tabular-nums; }
 .style-slider input[type="range"] { width: 100%; margin: .35rem 0 .15rem; accent-color: var(--garnet); }
 .style-slider__ends { display: flex; justify-content: space-between; font-family: var(--f-ui); font-size: .72rem; color: #8a8578; }
+
+/* Author notes textarea (Settings → Style) */
+#authorText {
+  width: 100%; resize: vertical; min-height: 8rem;
+  font-family: var(--f-body); font-size: .92rem; line-height: 1.55; color: var(--ink);
+  background: #fffdf7; border: 1px solid #d9cfbb; border-radius: 8px; padding: .7rem .85rem;
+}
+#authorText:focus { outline: none; border-color: var(--garnet-dim); box-shadow: 0 0 0 3px rgba(154,47,67,.1); }

@@ -77,6 +77,7 @@ export function initSettings() {
   }
 
   initStyleSliders();
+  initAuthorNotes();
 
   const show = async (tab) => { await load(); switchTab(tab || "guide"); modal.hidden = false; backdrop.hidden = false; };
   _show = show;
@@ -132,6 +133,28 @@ function initStyleSliders() {
   defaultsBtn?.addEventListener("click", () => {
     render(Object.fromEntries(Object.entries(meta).map(([k, m]) => [k, m.def])));
     status.textContent = "Defaults restored — press Save to apply.";
+  });
+}
+
+/* ---------------- Author notes (per book) ---------------- */
+function initAuthorNotes() {
+  const box = $("authorText"), save = $("authorSave"), status = $("authorStatus");
+  if (!box) return;
+  (async () => {
+    try {
+      const d = await (await fetch("/api/author" + bookQ())).json();
+      box.value = d.text || "";
+    } catch { status.textContent = "Could not load author notes."; }
+  })();
+  save?.addEventListener("click", async () => {
+    status.textContent = "Saving…";
+    try {
+      const d = await (await fetch("/api/author" + bookQ(), {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: box.value }),
+      })).json();
+      if (d.error) throw new Error(d.error);
+      status.textContent = `Saved for this book (${d.chars.toLocaleString()} chars) — applies from the next AI request.`;
+    } catch (e) { status.textContent = "Save failed — " + e.message; }
   });
 }
 

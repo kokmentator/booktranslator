@@ -229,6 +229,19 @@
           and rhythm. Each book keeps its own settings, so a raw story collection and a literary novel
           can sit side by side. Added to the house-style rules for <b>every</b> AI call
           (chat, synonyms, chapter translation) — and where they conflict with older notes, <b>the sliders win</b>.</p>
+
+        <h3>The author</h3>
+        <p class="settings__note" style="margin-top:0">Feed the translator everything that shapes this author's voice:
+          who they are, their background and era, how they write (sentence habits, humour, darkness, favourite images),
+          what they would never say, and what must survive translation at all costs. The AI reads this before
+          every translation, suggestion and chat reply for this book.</p>
+        <textarea id="authorText" rows="9" placeholder="e.g. A former nurse writing her first novel at 60. Dry, dark humour that never announces itself. Short declarative sentences when things get emotional — she never explains feelings, she shows routines. Swears casually, never for shock. The refrain 'and that was that' recurs deliberately…"></textarea>
+        <div class="settings__actions">
+          <button class="btn-primary" id="authorSave" type="button">Save author notes</button>
+          <span class="settings__status" id="authorStatus"></span>
+        </div>
+
+        <h3>Style sliders</h3>
         <div id="styleSliders"></div>
         <div class="settings__actions">
           <button class="btn-primary" id="styleSave" type="button">Save</button>
