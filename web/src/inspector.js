@@ -86,10 +86,28 @@ function renderSuggestions(seg) {
   if (claude && (claude.options || []).length) parts.push(claudeCard(claude));
 
   if (!parts.length) {
-    box.innerHTML = `<div class="empty">No open suggestions here.<br>This paragraph reads as <b>settled</b>.</div>`;
+    box.innerHTML = `<div class="empty">No open suggestions here.<br>This paragraph reads as <b>settled</b>.</div>` + historySection(seg);
   } else {
-    box.innerHTML = parts.join("");
+    box.innerHTML = parts.join("") + historySection(seg);
   }
+}
+
+/* --------------------- per-paragraph version history -------------------- */
+// Every save keeps the previous wording (up to 50). Restore = a normal save,
+// so restoring is itself undoable.
+function historySection(seg) {
+  const hist = (seg.history || []).filter((h) => (h.from || "").trim());
+  if (!hist.length) return "";
+  const items = hist.slice().reverse().map((h, i) => {
+    const when = h.ts ? new Date(h.ts).toLocaleString() : "";
+    const who = h.by ? ` · ${esc(h.by)}` : "";
+    return `<div class="hist__item">
+      <div class="hist__meta">${esc(when)}${who}</div>
+      <div class="hist__text">${esc(clip(h.from, 220))}</div>
+      <button class="btn-mini" data-act="restore" data-r="${hist.length - 1 - i}">Restore this version</button>
+    </div>`;
+  }).join("");
+  return `<details class="hist"><summary>History — ${hist.length} earlier version${hist.length === 1 ? "" : "s"}</summary>${items}</details>`;
 }
 
 function altCard(h, i, text) {
@@ -140,6 +158,18 @@ async function onSuggestionClick(e) {
   const btn = e.target.closest("[data-act]");
   if (!btn || !activeSeg) return;
   const act = btn.dataset.act;
+  if (act === "restore") {
+    const h = (activeSeg.history || []).filter((x) => (x.from || "").trim())[+btn.dataset.r];
+    if (!h) return;
+    try {
+      const seg = await patchSegment(activeSeg.id, h.from);
+      activeSeg = seg;
+      applyToEditor(seg);
+      renderSuggestions(seg);
+      flash("Restored the earlier version.");
+    } catch (err) { flash("Couldn’t restore — " + err.message); }
+    return;
+  }
   const body =
     act === "choose" ? { action: "choose", hesitationIndex: +btn.dataset.h, optionIndex: +btn.dataset.o } :
     act === "keep" ? { action: "keep", hesitationIndex: +btn.dataset.h } :

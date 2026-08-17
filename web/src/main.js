@@ -1,7 +1,7 @@
 // Translation Desk — multi-book. Renders the two leaves, stitches selections
 // across the seam, keeps the panes scroll-synced, reports position, saves inline
 // edits, drives the inspector, and switches between books.
-import { getProject, patchSegment, getBooks, currentBook, exportBook, translateChapter } from "./api.js";
+import { getProject, patchSegment, getBooks, currentBook, exportBook, translateChapter, translateSegment } from "./api.js";
 import { initZoom } from "./zoom.js";
 import { initInspector, setActive as inspectorSetActive, onServerEvent, activateChat } from "./inspector.js";
 import { initSynonyms, synonymsFromPoint, synonymsFromSelection, onSynonymsEvent } from "./synonyms.js";
@@ -75,8 +75,108 @@ async function init() {
   wireScrollSync();
   wireExport();
   wireTranslateChapter();
+  initSearch();
+  initJumpUntranslated();
   connectEvents();
   updatePosition();
+  updateProgress();
+}
+
+/* --------------------- search across both texts --------------------- */
+function initSearch() {
+  const bar = document.getElementById("searchbar"), input = document.getElementById("searchInput");
+  const count = document.getElementById("searchCount");
+  if (!bar) return;
+  let hits = [], at = -1, lastQuery = "";
+
+  const open = () => { bar.hidden = false; input.focus(); input.select(); };
+  const close = () => { bar.hidden = true; clearMark(); hits = []; at = -1; count.textContent = ""; };
+  const clearMark = () => document.querySelectorAll(".search-hit").forEach((el) => el.classList.remove("search-hit"));
+
+  function collect(qRaw) {
+    const q = qRaw.trim().toLowerCase();
+    hits = []; at = -1; clearMark();
+    if (q.length < 2) { count.textContent = ""; return; }
+    const scan = (map, paneKey) => {
+      for (const [id, seg] of map) {
+        const text = paneKey === "left" ? (seg.targetText || "") : (seg.text || "");
+        if (text.toLowerCase().includes(q)) hits.push({ id, paneKey });
+      }
+    };
+    scan(targetById, "left");
+    scan(sourceById, "right");
+    count.textContent = hits.length ? `0/${hits.length}` : "0 matches";
+  }
+
+  function go(dir) {
+    if (!hits.length) return;
+    at = (at + dir + hits.length) % hits.length;
+    clearMark();
+    const h = hits[at];
+    const el = elById[h.paneKey].get(h.id);
+    if (el) {
+      el.classList.add("search-hit");
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+    count.textContent = `${at + 1}/${hits.length}`;
+  }
+
+  input.addEventListener("input", () => { lastQuery = input.value; collect(lastQuery); });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); go(e.shiftKey ? -1 : 1); }
+    else if (e.key === "Escape") { e.preventDefault(); close(); }
+  });
+  document.getElementById("searchNext").addEventListener("click", () => go(1));
+  document.getElementById("searchPrev").addEventListener("click", () => go(-1));
+  document.getElementById("searchClose").addEventListener("click", close);
+  document.getElementById("searchBtn")?.addEventListener("click", open);
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "f") { e.preventDefault(); open(); }
+  });
+}
+
+/* --------------- jump to next untranslated / flagged ----------------- */
+function initJumpUntranslated() {
+  const btn = document.getElementById("jumpUntranslated");
+  if (!btn) return;
+  const jump = () => {
+    const open = project.targetSegments.filter((s) =>
+      s.kind === "body" && (s.status === "untranslated" || s.status === "flagged" || !(s.targetText || "").trim()));
+    if (!open.length) { hintEl.textContent = "Nothing left — every paragraph has a translation. 🎉"; return; }
+    // next one below the current viewport centre, else wrap to the first
+    const mid = left.scrollTop + left.clientHeight / 2;
+    const next = open.find((s) => {
+      const el = elById.left.get(s.id);
+      return el && el.offsetTop > mid;
+    }) || open[0];
+    const el = elById.left.get(next.id);
+    if (el) {
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      el.classList.add("search-hit");
+      setTimeout(() => el.classList.remove("search-hit"), 1600);
+    }
+    hintEl.textContent = `${open.length} paragraph${open.length === 1 ? "" : "s"} still untranslated or flagged.`;
+  };
+  btn.addEventListener("click", jump);
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "j") { e.preventDefault(); jump(); }
+  });
+}
+
+/* ----------------- book progress in the masthead --------------------- */
+function updateProgress() {
+  const box = document.getElementById("bookProgress");
+  const bar = document.getElementById("bookProgressBar");
+  const txt = document.getElementById("bookProgressText");
+  if (!box || !project) return;
+  const bodies = project.targetSegments.filter((s) => s.kind === "body");
+  if (!bodies.length) { box.hidden = true; return; }
+  const done = bodies.filter((s) => s.status !== "untranslated" && (s.targetText || "").trim()).length;
+  const pct = Math.round((done / bodies.length) * 100);
+  box.hidden = false;
+  bar.style.width = pct + "%";
+  txt.textContent = `${pct}%`;
+  box.title = `${done} of ${bodies.length} paragraphs translated (${pct}%)`;
 }
 
 /* ----------------- save indicator + hard Save button ---------------- */
@@ -140,11 +240,33 @@ function initUsage() {
 function wireTranslateChapter() {
   const btn = document.getElementById("translateChapterBtn");
   btn?.addEventListener("click", () => doTranslateChapter(chapterSelect.value));
-  // Double-click a chapter heading in the translation pane → translate it.
   left.addEventListener("dblclick", (e) => {
+    // Double-click a chapter heading → translate the whole chapter.
     const h = e.target.closest(".seg__heading");
-    if (h && h.dataset.chapter) doTranslateChapter(h.dataset.chapter);
+    if (h && h.dataset.chapter) { doTranslateChapter(h.dataset.chapter); return; }
+    // Double-click an UNTRANSLATED paragraph → translate just that paragraph.
+    // (Translated paragraphs keep double-click for the synonym popup.)
+    const p = e.target.closest(".seg");
+    if (p && p.dataset.id) {
+      const seg = targetById.get(p.dataset.id);
+      if (seg && (seg.status === "untranslated" || !(seg.targetText || "").trim())) doTranslateSegment(seg, p);
+    }
   });
+}
+
+async function doTranslateSegment(seg, el) {
+  hintEl.textContent = "Translating this paragraph…";
+  el.classList.add("is-translating");
+  try {
+    const out = await translateSegment(seg.id);
+    if (out.queued) hintEl.textContent = "Paragraph queued — run /engine in a Claude Code session, or add a free AI key in Settings → AI provider.";
+    else hintEl.textContent = `Translating this paragraph with ${out.via}…`;
+    // the result lands over SSE as a segment-updated event
+  } catch (err) {
+    hintEl.textContent = "Translate failed — " + err.message;
+  } finally {
+    setTimeout(() => el.classList.remove("is-translating"), 4000);
+  }
 }
 
 let translating = false;
@@ -198,11 +320,13 @@ async function doTranslateChapter(chapterId) {
 function wireExport() {
   const btn = document.getElementById("exportBtn");
   if (!btn) return;
-  btn.addEventListener("click", async () => {
+  const run = async (format) => {
     btn.disabled = true;
-    hintEl.textContent = "Exporting…";
+    hintEl.textContent = `Exporting ${format === "epub" ? "EPUB" : "Word"}…`;
     try {
-      const out = await exportBook();
+      const r = await fetch(`/api/export?book=${encodeURIComponent(currentBook())}&format=${format}`, { method: "POST" });
+      const out = await r.json();
+      if (!r.ok || out.error) throw new Error(out.error || "Export failed");
       const empties = out.emptyCount ? ` (${out.emptyCount} paragraphs still untranslated)` : "";
       hintEl.textContent = `Exported ${out.bodyCount} paragraphs → ${out.file}${empties}`;
     } catch (err) {
@@ -210,6 +334,19 @@ function wireExport() {
     } finally {
       btn.disabled = false;
     }
+  };
+  btn.addEventListener("click", (e) => {
+    // tiny two-choice menu under the button
+    document.querySelector(".exportmenu")?.remove();
+    const m = document.createElement("div");
+    m.className = "exportmenu";
+    m.innerHTML = `<button data-f="docx">Word (.docx) — KDP-ready</button><button data-f="epub">EPUB (.epub)</button>`;
+    const b = btn.getBoundingClientRect();
+    m.style.top = b.bottom + 4 + "px"; m.style.left = Math.min(b.left, innerWidth - 230) + "px";
+    m.addEventListener("click", (ev) => { const f = ev.target.dataset?.f; m.remove(); if (f) run(f); });
+    document.body.appendChild(m);
+    setTimeout(() => document.addEventListener("click", () => m.remove(), { once: true }), 0);
+    e.stopPropagation();
   });
 }
 
@@ -524,6 +661,7 @@ function applySegmentUpdate(data) {
     }
     if (seg.status) el.dataset.status = seg.status;
   }
+  updateProgress();
   return seg;
 }
 

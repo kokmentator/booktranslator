@@ -35,7 +35,8 @@ export function slugFromTitle(title, taken) {
   return id;
 }
 
-// meta: { title, titleSource, author, sourceLang, targetLang, label, sourceFileName }
+// meta: { title, titleSource, author, sourceLang, targetLang, label, sourceFileName, dryRun }
+// With dryRun: parse + detect chapters and return the preview WITHOUT writing anything.
 export async function importManuscript(bookId, buffer, ext, meta = {}) {
   const paras = await parasFromBuffer(buffer, ext);
   if (!paras.length) throw new Error("No paragraphs found in the manuscript.");
@@ -65,6 +66,17 @@ export async function importManuscript(bookId, buffer, ext, meta = {}) {
 
   // Drop an empty front-matter chapter (manuscripts that open with a heading).
   const usedChapters = chapters.filter((c) => sourceSegments.some((s) => s.chapterId === c.id));
+
+  if (meta.dryRun) {
+    return {
+      dryRun: true, paragraphs: paras.length, chapters: usedChapters.length,
+      chapterList: usedChapters.map((c) => ({
+        id: c.id, label: c.label,
+        paragraphs: sourceSegments.filter((s) => s.chapterId === c.id && s.style === "body").length,
+        firstLine: (sourceSegments.find((s) => s.chapterId === c.id && s.style === "body")?.text || "").slice(0, 90),
+      })),
+    };
+  }
 
   // Mirror every source paragraph as an untranslated target.
   const targetSegments = sourceSegments.map((s, i) => ({

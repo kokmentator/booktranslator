@@ -18,7 +18,13 @@
       <span class="masthead__sep">/</span>
       <span class="masthead__cs" id="titleSource"></span>
     </div>
+    <div class="masthead__progress" id="bookProgress" title="Translated paragraphs in this book" hidden>
+      <div class="masthead__progressbar"><i id="bookProgressBar"></i></div>
+      <span id="bookProgressText"></span>
+    </div>
     <select class="chapter-select" id="chapterSelect" aria-label="Jump to chapter"></select>
+    <button class="masthead__panel" id="jumpUntranslated" type="button" title="Jump to the next untranslated or flagged paragraph (Ctrl+J)">→ Untranslated</button>
+    <button class="masthead__panel" id="searchBtn" type="button" title="Search both texts (Ctrl+F)">🔍</button>
     <button class="masthead__translate" id="translateChapterBtn" type="button" title="Auto-translate this chapter's untranslated paragraphs (or double-click a chapter heading)"><span class="spin" aria-hidden="true"></span><span id="translateLabel">⤳ Translate chapter</span></button>
     <div class="masthead__zoom" role="group" aria-label="Text size">
       <button id="zoomOut" type="button" title="Smaller text (Ctrl -)" aria-label="Smaller text">&minus;</button>
@@ -35,6 +41,14 @@
     <a class="masthead__panel" id="datasetLink" href="/training.html" title="Training dataset captured from your editing (SFT / DPO / eval)">Dataset</a>
     <button class="masthead__panel" id="panelToggle" type="button" title="Show / hide the side panel" aria-label="Toggle side panel">Panel</button>
   </header>
+
+  <div class="searchbar" id="searchbar" hidden>
+    <input id="searchInput" type="text" placeholder="Search both texts… (Enter = next, Shift+Enter = previous, Esc = close)" autocomplete="off">
+    <span class="searchbar__count" id="searchCount"></span>
+    <button type="button" id="searchPrev" title="Previous (Shift+Enter)">↑</button>
+    <button type="button" id="searchNext" title="Next (Enter)">↓</button>
+    <button type="button" id="searchClose" title="Close (Esc)">×</button>
+  </div>
 
   <main class="desk" id="desk">
     <section class="leaf leaf--target" aria-label="Translation">
@@ -113,7 +127,7 @@
           <option>Hungarian</option><option>Romanian</option><option>Greek</option>
         </datalist>
         <div class="settings__actions">
-          <button class="btn-primary" id="impGo" type="submit">Import book</button>
+          <button class="btn-primary" id="impGo" type="submit">Preview import</button>
           <span class="settings__status" id="impStatus"></span>
         </div>
         <p class="settings__note">.docx, .md and .txt manuscripts work. Chapters are detected from headings

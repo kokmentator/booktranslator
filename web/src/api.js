@@ -66,6 +66,18 @@ export async function exportBook() {
   return r.json();
 }
 
+export async function translateSegment(segmentId) {
+  const r = await fetch("/api/translate-segment" + q(), {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ segmentId }),
+  });
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    throw new Error(e.error || "Translate failed");
+  }
+  return r.json();
+}
+
 export async function translateChapter(chapterId) {
   const r = await fetch("/api/translate-chapter" + q(), {
     method: "POST", headers: { "Content-Type": "application/json" },

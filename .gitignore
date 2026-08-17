@@ -27,6 +27,7 @@ Thumbs.db
 # App-written runtime state under data/ (the server owns these; git cannot hold
 # a coherent view of them). The demo book's project.json IS committed so a fresh
 # clone opens with something to translate — everything the app writes on top is not.
+data/_trash/
 data/*/backups/
 data/*/exports/
 data/*/exchange/

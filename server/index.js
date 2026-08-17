@@ -11,6 +11,7 @@ import { decide } from "./decide.js";
 import { loadBooks, isValidBook, bookById, defaultBookId } from "./registry.js";
 import { languagesFor, styleFiles } from "./config.js";
 import { exportDocx } from "./export/exportDocx.js";
+import { exportEpub } from "./export/exportEpub.js";
 import { getSynonyms } from "./synonyms.js";
 import { parseTables, reloadTermbase } from "./termbase.js";
 import { resolveFeature, publicConfig, saveConfig, providerSettings } from "./engineConfig.js";
@@ -42,6 +43,11 @@ const hasProject = (id) => fs.existsSync(path.join(dataDir(id), "project.json"))
 const app = express();
 app.use(express.json({ limit: "4mb" }));
 
+// Exchange watchers per book — kept so deleting a book can close its watcher
+// first (Windows refuses to move a directory something still has open).
+const watchers = new Map();
+const watchBook = (id) => { if (!watchers.has(id)) watchers.set(id, startWatcher(id)); };
+
 // --- Registry (with per-book translation progress for the library view) ---
 app.get("/api/books", (req, res) => {
   res.json(loadBooks().map((b) => {
@@ -70,6 +76,12 @@ app.post("/api/import", express.json({ limit: "60mb" }), async (req, res) => {
     const buffer = Buffer.from(String(dataBase64), "base64");
     if (!buffer.length) return res.status(400).json({ error: "empty file" });
 
+    // Preview mode: parse + chapter detection only, nothing written.
+    if (req.body.dryRun) {
+      const preview = await importManuscript("preview", buffer, ext, { dryRun: true });
+      return res.json({ ok: true, ...preview });
+    }
+
     const bookId = slugFromTitle(title || path.basename(fileName, ext), loadBooks().map((b) => b.id));
     const out = await importManuscript(bookId, buffer, ext, {
       title: title || path.basename(fileName, ext),
@@ -78,7 +90,7 @@ app.post("/api/import", express.json({ limit: "60mb" }), async (req, res) => {
       label: label || title || bookId, sourceFileName: String(fileName),
     });
     clearRulesCache();       // language pair affects the digest header
-    startWatcher(bookId);    // live exchange folder for the new book
+    watchBook(bookId);       // live exchange folder for the new book
     res.json({ ok: true, bookId, ...out });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
@@ -154,11 +166,12 @@ app.post("/api/segment/:id/decide", (req, res) => {
   }
 });
 
-// --- Export a clean delivery .docx ---
+// --- Export a clean delivery file (.docx for KDP, or .epub) ---
 app.post("/api/export", async (req, res) => {
   try {
-    const out = await exportDocx(bookOf(req));
-    res.json({ ok: true, ...out });
+    const format = String(req.query.format || req.body?.format || "docx");
+    const out = format === "epub" ? await exportEpub(bookOf(req)) : await exportDocx(bookOf(req));
+    res.json({ ok: true, format, ...out });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
@@ -368,6 +381,103 @@ app.post("/api/style", (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
+// --- Translate ONE paragraph (double-click an untranslated paragraph) ---
+app.post("/api/translate-segment", async (req, res) => {
+  const book = bookOf(req);
+  const { segmentId } = req.body || {};
+  if (!segmentId || !/^[a-zA-Z0-9_-]+$/.test(String(segmentId)))
+    return res.status(400).json({ error: "segmentId must match [a-zA-Z0-9_-]+" });
+  try {
+    const project = loadProject(book);
+    const seg = project.targetSegments.find((s) => s.id === segmentId);
+    if (!seg) return res.status(404).json({ error: "segment not found" });
+    const srcById = Object.fromEntries(project.sourceSegments.map((s) => [s.id, s]));
+    const source = (seg.sourceLinks || []).map((id) => srcById[id]?.text).filter(Boolean).join(" ");
+    if (!source.trim()) return res.status(400).json({ error: "no source text linked to this paragraph" });
+
+    const provider = providerSettings();
+    if (provider) {
+      res.json({ ok: true, started: true, via: provider.provider });
+      try {
+        const langs = languagesFor(bookById(book));
+        const map = await translateItems(provider, [{ n: 1, source }], project.book.namePolicy, buildRulesDigest(book), langs);
+        const text = map[1];
+        if (!text) throw new Error("provider returned no translation");
+        const fresh = loadProject(book);
+        const fseg = fresh.targetSegments.find((s) => s.id === segmentId);
+        if (fseg) {
+          fseg.targetText = text; fseg.status = "draft";
+          (fseg.history = fseg.history || []).push({ ts: new Date().toISOString(), from: "", by: "mt:" + provider.provider, model: provider.model });
+          appendEvent(book, { type: "draft", segId: segmentId, sourceText: source, draftText: text, provider: provider.provider, model: provider.model, rulesVersion: rulesVersion(book) });
+          saveProject(book, fresh);
+          broadcast(book, "segment-updated", { id: fseg.id, status: fseg.status, targetText: fseg.targetText });
+          broadcast(book, "usage", getUsage());
+        }
+      } catch (e) {
+        broadcast(book, "segment-updated", { id: segmentId, error: String(e.message || e) });
+      }
+      return;
+    }
+    // No provider — queue for the /engine session (same shape as a 1-item chapter).
+    writeRequest(book, `translate-seg-${segmentId}-${Date.now()}.json`, {
+      kind: "translate-chapter", chapterId: seg.chapterId,
+      items: [{ n: 1, segId: segmentId, source }],
+      namePolicy: project.book.namePolicy, ts: new Date().toISOString(),
+    });
+    res.json({ ok: true, queued: true });
+  } catch (e) {
+    if (!res.headersSent) res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// --- Book management: rename / delete (Library card actions) ---
+app.post("/api/book/rename", (req, res) => {
+  try {
+    const book = bookOf(req);
+    const { title, titleSource, label, author } = req.body || {};
+    if (!title || !String(title).trim()) return res.status(400).json({ error: "title required" });
+    const books = loadBooks();
+    const entry = books.find((b) => b.id === book);
+    if (!entry) return res.status(404).json({ error: "book not found" });
+    entry.titleTarget = String(title).trim();
+    entry.label = String(label ?? title).trim() || entry.titleTarget;
+    if (titleSource !== undefined) entry.titleSource = String(titleSource).trim();
+    if (author !== undefined) entry.author = String(author).trim();
+    fs.writeFileSync(path.join(dataDir(""), "books.json"), JSON.stringify(books, null, 2), "utf-8");
+    if (hasProject(book)) {
+      const project = loadProject(book);
+      project.book.titleTarget = entry.titleTarget;
+      if (titleSource !== undefined) project.book.titleSource = entry.titleSource;
+      if (author !== undefined) project.book.author = entry.author;
+      saveProject(book, project);
+    }
+    res.json({ ok: true, entry });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+app.post("/api/book/delete", async (req, res) => {
+  try {
+    const book = bookOf(req);
+    const books = loadBooks();
+    if (!books.find((b) => b.id === book)) return res.status(404).json({ error: "book not found" });
+    if (books.length === 1) return res.status(400).json({ error: "cannot delete the last book" });
+    // Close the exchange watcher first — Windows refuses to move a directory
+    // that a watcher still has open.
+    const w = watchers.get(book);
+    if (w) { watchers.delete(book); await w.close().catch(() => {}); }
+    // Never hard-delete a manuscript: move the data folder to data/_trash/.
+    const from = dataDir(book);
+    if (fs.existsSync(from)) {
+      const trash = path.join(dataDir(""), "_trash");
+      fs.mkdirSync(trash, { recursive: true });
+      fs.renameSync(from, path.join(trash, `${book}-${Date.now()}`));
+    }
+    const next = books.filter((b) => b.id !== book);
+    fs.writeFileSync(path.join(dataDir(""), "books.json"), JSON.stringify(next, null, 2), "utf-8");
+    res.json({ ok: true, movedToTrash: true, remaining: next.map((b) => b.id) });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
 // --- Engine config (which AI answers Synonyms / Chat) ---
 app.get("/api/engine/config", (req, res) => res.json(publicConfig()));
 app.post("/api/engine/config", (req, res) => {
@@ -434,7 +544,7 @@ app.get("*", (req, res) => res.sendFile(path.join(WEB_DIR, "index.html")));
 
 // Start a file-watcher per book that has data on disk.
 for (const b of loadBooks()) {
-  if (hasProject(b.id)) startWatcher(b.id);
+  if (hasProject(b.id)) watchBook(b.id);
 }
 
 app.listen(PORT, HOST, () => {
