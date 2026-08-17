@@ -6,6 +6,7 @@ import { initZoom } from "./zoom.js";
 import { initInspector, setActive as inspectorSetActive, onServerEvent, activateChat } from "./inspector.js";
 import { initSynonyms, synonymsFromPoint, synonymsFromSelection, onSynonymsEvent } from "./synonyms.js";
 import { initSettings } from "./settings.js";
+import { initLibrary, openLibrary } from "./library.js";
 
 const left = document.getElementById("left");
 const right = document.getElementById("right");
@@ -31,6 +32,7 @@ init();
 async function init() {
   initZoom();
   initSettings();
+  initLibrary();
   await renderBookTabs();
   try {
     project = await getProject();
@@ -166,6 +168,13 @@ async function renderBookTabs() {
     if (b.id !== active) btn.addEventListener("click", () => { location.search = "?book=" + encodeURIComponent(b.id); });
     bookbar.appendChild(btn);
   }
+  // "+" tab: the library — overview of all books + import a new one.
+  const add = document.createElement("button");
+  add.className = "bookbar__tab bookbar__add";
+  add.textContent = "+";
+  add.title = "Your books — overview & add a new book";
+  add.addEventListener("click", openLibrary);
+  bookbar.appendChild(add);
 }
 
 /* ----------------------------- render ----------------------------- */

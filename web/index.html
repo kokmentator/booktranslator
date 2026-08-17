@@ -72,6 +72,51 @@
     </span>
   </footer>
 
+  <!-- LIBRARY: overview of all books + add a new one -->
+  <div class="manual-backdrop" id="libraryBackdrop" hidden></div>
+  <aside class="manual library" id="library" hidden role="dialog" aria-modal="true" aria-label="Your books">
+    <div class="manual__head">
+      <h2>Your books</h2>
+      <button class="manual__x" id="libraryClose" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="manual__body">
+      <div class="library__list" id="libraryList"></div>
+
+      <h3 class="library__addhead">Add a book</h3>
+      <form class="library__form" id="importForm">
+        <label class="settings__row"><span>Manuscript</span>
+          <input id="impFile" type="file" accept=".docx,.md,.txt" required></label>
+        <label class="settings__row"><span>Title</span>
+          <input id="impTitle" type="text" placeholder="working title (in the target language)" required></label>
+        <label class="settings__row"><span>Original title <i>(optional)</i></span>
+          <input id="impTitleSource" type="text" placeholder="title in the source language"></label>
+        <label class="settings__row"><span>Author <i>(optional)</i></span>
+          <input id="impAuthor" type="text" placeholder="author name"></label>
+        <label class="settings__row"><span>Translate from</span>
+          <input id="impSourceLang" type="text" list="langList" placeholder="e.g. English" required></label>
+        <label class="settings__row"><span>Translate into</span>
+          <input id="impTargetLang" type="text" list="langList" placeholder="e.g. Spanish" required></label>
+        <datalist id="langList">
+          <option>English</option><option>Spanish</option><option>German</option>
+          <option>French</option><option>Italian</option><option>Portuguese</option>
+          <option>Dutch</option><option>Polish</option><option>Czech</option>
+          <option>Slovak</option><option>Russian</option><option>Ukrainian</option>
+          <option>Japanese</option><option>Chinese</option><option>Korean</option>
+          <option>Arabic</option><option>Turkish</option><option>Swedish</option>
+          <option>Norwegian</option><option>Danish</option><option>Finnish</option>
+          <option>Hungarian</option><option>Romanian</option><option>Greek</option>
+        </datalist>
+        <div class="settings__actions">
+          <button class="btn-primary" id="impGo" type="submit">Import book</button>
+          <span class="settings__status" id="impStatus"></span>
+        </div>
+        <p class="settings__note">.docx, .md and .txt manuscripts work. Chapters are detected from headings
+          ("Chapter 7", "Kapitel 7", "# Heading", ALL-CAPS lines…). Everything imports untranslated —
+          the translating happens here, in the app.</p>
+      </form>
+    </div>
+  </aside>
+
   <div class="manual-backdrop" id="settingsBackdrop" hidden></div>
   <aside class="manual settings" id="settings" hidden role="dialog" aria-modal="true" aria-label="Settings">
     <div class="manual__head">

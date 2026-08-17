@@ -15,7 +15,8 @@ import { getSynonyms } from "./synonyms.js";
 import { resolveFeature, publicConfig, saveConfig, providerSettings } from "./engineConfig.js";
 import { llmSynonyms, llmChat } from "./llm.js";
 import { translateItems } from "./translate.js";
-import { buildRulesDigest, rulesVersion } from "./translationContext.js";
+import { buildRulesDigest, rulesVersion, clearRulesCache } from "./translationContext.js";
+import { importManuscript, slugFromTitle } from "./import/importCore.js";
 import { appendEvent } from "./training/events.js";
 import { exportDataset, datasetStats } from "./training/exportDataset.js";
 
@@ -34,9 +35,47 @@ const hasProject = (id) => fs.existsSync(path.join(dataDir(id), "project.json"))
 const app = express();
 app.use(express.json({ limit: "4mb" }));
 
-// --- Registry ---
+// --- Registry (with per-book translation progress for the library view) ---
 app.get("/api/books", (req, res) => {
-  res.json(loadBooks().map((b) => ({ ...b, ready: hasProject(b.id) })));
+  res.json(loadBooks().map((b) => {
+    const ready = hasProject(b.id);
+    let progress = null;
+    if (ready) {
+      try {
+        const p = loadProject(b.id);
+        const bodies = p.targetSegments.filter((s) => s.kind === "body");
+        const done = bodies.filter((s) => s.status !== "untranslated" && (s.targetText || "").trim()).length;
+        progress = { total: bodies.length, done, chapters: p.chapters.length };
+      } catch {}
+    }
+    return { ...b, ready, progress, languages: languagesFor(b) };
+  }));
+});
+
+// --- Import a new book from the browser (file arrives base64 in JSON) ---
+app.post("/api/import", express.json({ limit: "60mb" }), async (req, res) => {
+  try {
+    const { fileName, dataBase64, title, titleSource, author, sourceLang, targetLang, label } = req.body || {};
+    if (!fileName || !dataBase64) return res.status(400).json({ error: "fileName and dataBase64 required" });
+    const ext = path.extname(String(fileName)).toLowerCase();
+    if (![".docx", ".md", ".txt"].includes(ext))
+      return res.status(400).json({ error: "Supported manuscript types: .docx, .md, .txt" });
+    const buffer = Buffer.from(String(dataBase64), "base64");
+    if (!buffer.length) return res.status(400).json({ error: "empty file" });
+
+    const bookId = slugFromTitle(title || path.basename(fileName, ext), loadBooks().map((b) => b.id));
+    const out = await importManuscript(bookId, buffer, ext, {
+      title: title || path.basename(fileName, ext),
+      titleSource: titleSource || "", author: author || "",
+      sourceLang: sourceLang || "", targetLang: targetLang || "",
+      label: label || title || bookId, sourceFileName: String(fileName),
+    });
+    clearRulesCache();       // language pair affects the digest header
+    startWatcher(bookId);    // live exchange folder for the new book
+    res.json({ ok: true, bookId, ...out });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 // --- Project ---
