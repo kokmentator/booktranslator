@@ -10,14 +10,14 @@
 import fs from "node:fs";
 import { styleFiles } from "./config.js";
 
-const FILES = ["glossary.md", "idioms.md"];
+const FILES = ["glossary.md", "idioms.md", "slang.md"];
 
 const CACHE = new Map(); // bookId -> { entries, idx }
 
 const clean = (s) => (s || "").replace(/\*\*/g, "").replace(/`/g, "").replace(/\s+/g, " ").trim();
 const isSeparator = (cells) => cells.every((c) => /^:?-{2,}:?$/.test(c.trim()));
 
-function parseTables(md, source) {
+export function parseTables(md, source) {
   const out = [];
   let header = null, cols = null;
   for (const raw of md.split(/\r?\n/)) {

@@ -126,7 +126,7 @@ function armTranslateTimeout(label) {
   clearTimeout(translateTimer);
   translateTimer = setTimeout(() => {
     translating = false; setTranslateWorking(false);
-    hintEl.textContent = `Still waiting on ${label} — ask Claude to translate it, or set up a free AI in Settings.`;
+    hintEl.textContent = `Still waiting on ${label} — run /engine in a Claude Code session in this folder, or add a free AI key in Settings → AI provider.`;
   }, 180000);
 }
 
@@ -144,7 +144,7 @@ async function doTranslateChapter(chapterId) {
     } else if (out.queued) {
       // No external provider — waiting for Claude. Keep the spinner going.
       setTranslateWorking(true, "Translating " + label + "…");
-      hintEl.textContent = `${out.count} paragraphs of ${label} queued — ask Claude to translate, or connect a free AI in Settings → AI provider.`;
+      hintEl.textContent = `${out.count} paragraphs of ${label} queued — run /engine in a Claude Code session in this folder (or /loop 30s /engine to keep it automatic), or add a free AI key in Settings → AI provider.`;
       armTranslateTimeout(label);
     } else {
       setTranslateWorking(true, "Translating " + label + "…");

@@ -675,3 +675,25 @@ a.masthead__panel { text-decoration: none; display: inline-block; line-height: n
   background: #fffdf7; border: 1px solid #d9cfbb; border-radius: 8px; padding: .7rem .85rem;
 }
 #authorText:focus { outline: none; border-color: var(--garnet-dim); box-shadow: 0 0 0 3px rgba(154,47,67,.1); }
+
+/* Glossary / slang editor (Settings → Glossary) */
+.terms-switch { display: flex; gap: .3rem; margin: .2rem 0 .7rem; }
+.terms-tab {
+  font-family: var(--f-ui); font-size: .76rem; font-weight: 600; color: #6d6759;
+  background: transparent; border: 1px solid #d9cfbb; border-radius: 7px;
+  padding: .32rem .7rem; cursor: pointer;
+}
+.terms-tab.is-active { color: #fff; background: var(--garnet); border-color: var(--garnet); }
+.terms-table { width: 100%; border-collapse: collapse; }
+.terms-table th { font-family: var(--f-ui); font-size: .72rem; text-align: left; color: #8a8578; padding: .2rem .35rem; }
+.terms-table td { padding: .15rem .25rem; }
+.terms-table input[type="text"], .terms-table input:not([type]) {
+  width: 100%; font: inherit; font-size: .88rem; padding: .3rem .5rem;
+  border: 1px solid #ddd3bf; border-radius: 6px; background: #fffdf7; color: var(--ink);
+}
+.terms-table input:focus { outline: none; border-color: var(--garnet-dim); }
+.t-lock { font-family: var(--f-ui); font-size: .74rem; color: #6d6759; white-space: nowrap; display: inline-flex; align-items: center; gap: .3rem; }
+.t-del { border: 0; background: transparent; color: #b0a893; font-size: 1.05rem; cursor: pointer; padding: 0 .3rem; }
+.t-del:hover { color: var(--garnet); }
+.terms-empty { color: #8a8578; font-size: .85rem; font-style: italic; padding: .5rem .2rem; }
+.terms-table--ro td { font-size: .85rem; color: #6d6759; border-bottom: 1px solid #eee5d3; padding: .28rem .4rem; }

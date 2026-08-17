@@ -21,6 +21,7 @@ export const STYLE_SLIDERS = {
   idiom:     { label: "Local idiom",        low: "Plain neutral wording",       high: "Rich local idiom",         def: 50 },
   swearing:  { label: "Strong language",    low: "Softened",                    high: "Fully uncensored",         def: 60 },
   variation: { label: "Vary openings",      low: "Natural repetition is fine",  high: "Actively vary openings",   def: 20 },
+  suggestions:{ label: "Suggestion sensitivity", low: "Only real problems",     high: "Suggest generously",       def: 40 },
 };
 
 const defaults = () => Object.fromEntries(Object.entries(STYLE_SLIDERS).map(([k, v]) => [k, v.def]));
@@ -100,6 +101,13 @@ const WORDING = {
     "Lightly vary sentence openings when three or more in a row start identically.",
     "Actively vary sentence openings (subject-drop, inversion, impersonal) while keeping the voice.",
     "Aggressively vary openings: avoid two consecutive identical starts, using subject-drop, inversion, fragments.",
+  ],
+  suggestions: [
+    "Attach suggestion cards ONLY where a rendering is genuinely doubtful or likely wrong — when in doubt, stay silent and commit to your best pick.",
+    "Suggest alternatives sparingly: real ambiguities, tricky idioms, and passages where two readings differ in meaning.",
+    "Offer a suggestion card wherever a paragraph has a defensible second rendering worth the editor's eye.",
+    "Be generous with alternatives: word choices, register shifts and rhythm variants are all worth offering.",
+    "Maximum coverage: attach alternatives and hesitation notes liberally so the editor sees every viable option.",
   ],
 };
 

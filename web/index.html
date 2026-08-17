@@ -128,6 +128,7 @@
       <button class="settings-tab is-active" data-stab="guide" type="button" role="tab">Guide</button>
       <button class="settings-tab" data-stab="ai" type="button" role="tab">AI provider</button>
       <button class="settings-tab" data-stab="style" type="button" role="tab">Style</button>
+      <button class="settings-tab" data-stab="terms" type="button" role="tab">Glossary</button>
     </div>
     <div class="manual__body">
       <!-- GUIDE -->
@@ -250,6 +251,28 @@
         </div>
         <p class="settings__note">Takes effect from the next AI request — no restart needed. The locked house rules
           (glossary terms, names policy, structural quirks in <code>data/style/</code>) always still apply.</p>
+      </div>
+
+      <!-- GLOSSARY / SLANG -->
+      <div class="stabpane" id="stab-terms">
+        <p class="settings__intro">Lock your terms for <b>this book</b> so they never drift: character names,
+          invented words, slang and its confirmed translation. The AI uses these renderings <b>verbatim</b> in every
+          translation, and the word popup (right-click a word) surfaces them first with a LOCKED badge.</p>
+        <div class="terms-switch" role="tablist">
+          <button class="terms-tab is-active" data-tfile="glossary" type="button">Glossary &amp; names</button>
+          <button class="terms-tab" data-tfile="slang" type="button">Slang</button>
+          <button class="terms-tab" data-tfile="idioms" type="button">Idioms</button>
+        </div>
+        <div id="termsEditor"></div>
+        <div class="settings__actions">
+          <button class="btn-primary" id="termsAdd" type="button">+ Add term</button>
+          <button class="btn-primary" id="termsSave" type="button">Save</button>
+          <span class="settings__status" id="termsStatus"></span>
+        </div>
+        <div id="termsShared"></div>
+        <p class="settings__note">Set Status to <b>LOCKED</b> when a rendering is final — locked terms are never
+          re-argued by the AI. Stored as plain Markdown tables in <code>data/&lt;book&gt;/style/</code>, so you can
+          also edit them in any text editor.</p>
       </div>
     </div>
   </aside>

@@ -9,9 +9,10 @@ import { startWatcher, writeRequest } from "./watch.js";
 import { appendChat, readChat } from "./chat.js";
 import { decide } from "./decide.js";
 import { loadBooks, isValidBook, bookById, defaultBookId } from "./registry.js";
-import { languagesFor } from "./config.js";
+import { languagesFor, styleFiles } from "./config.js";
 import { exportDocx } from "./export/exportDocx.js";
 import { getSynonyms } from "./synonyms.js";
+import { parseTables, reloadTermbase } from "./termbase.js";
 import { resolveFeature, publicConfig, saveConfig, providerSettings } from "./engineConfig.js";
 import { llmSynonyms, llmChat } from "./llm.js";
 import { translateItems } from "./translate.js";
@@ -298,6 +299,57 @@ app.post("/api/author", (req, res) => {
     fs.writeFileSync(file, text, "utf-8");
     clearRulesCache(); // baked into the rules digest — rebuild on next AI call
     res.json({ book, saved: true, chars: text.length });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+// --- Glossary / slang dictionary editor (per book) ---
+// Terms live as Markdown tables the whole pipeline already reads: the synonym
+// popup surfaces them (LOCKED first) and the AI digest quotes them verbatim.
+// The editor edits the BOOK's file; shared data/style/ files also apply and are
+// returned read-only so the full active termbase is visible in one place.
+const TERM_EDITABLE = { glossary: "glossary.md", slang: "slang.md", idioms: "idioms.md" };
+const termFileOf = (req) => TERM_EDITABLE[String(req.query.file || "glossary")] || null;
+const bookTermPath = (book, name) => path.join(dataDir(book), "style", name);
+
+app.get("/api/terms", (req, res) => {
+  try {
+    const book = bookOf(req), name = termFileOf(req);
+    if (!name) return res.status(400).json({ error: "file must be glossary | slang | idioms" });
+    const bookFile = bookTermPath(book, name);
+    const own = fs.existsSync(bookFile) ? parseTables(fs.readFileSync(bookFile, "utf-8"), name) : [];
+    // Shared rows = every hit for this filename minus the book's own file.
+    const shared = styleFiles(book, name)
+      .filter((p) => path.resolve(p) !== path.resolve(bookFile))
+      .flatMap((p) => parseTables(fs.readFileSync(p, "utf-8"), name));
+    const strip = (r) => ({ src: r.src, tgt: r.tgt, status: r.status, note: r.note });
+    res.json({ book, file: name, rows: own.map(strip), shared: shared.map(strip) });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+app.post("/api/terms", (req, res) => {
+  try {
+    const book = bookOf(req), name = termFileOf(req);
+    if (!name) return res.status(400).json({ error: "file must be glossary | slang | idioms" });
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows : null;
+    if (!rows) return res.status(400).json({ error: "rows (array) required" });
+    if (rows.length > 5000) return res.status(400).json({ error: "too many rows" });
+    const clean = rows
+      .map((r) => ({
+        src: String(r.src || "").trim(), tgt: String(r.tgt || "").trim(),
+        status: String(r.status || "").trim(), note: String(r.note || "").trim(),
+      }))
+      .filter((r) => r.src && r.tgt)
+      // | breaks Markdown table cells — swap for a slash.
+      .map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v.replace(/\|/g, "/")])));
+    const heading = name === "slang" ? "Slang dictionary" : name === "idioms" ? "Idiom log" : "Glossary — names & locked terms";
+    const md = `# ${heading}\n\nEdited in-app (Settings → Glossary). Locked terms are used verbatim by the AI\nand surface first in the word popup.\n\n| Source | Target | Status | Note |\n|--------|--------|--------|------|\n` +
+      clean.map((r) => `| ${r.src} | ${r.tgt} | ${r.status} | ${r.note} |`).join("\n") + "\n";
+    const file = bookTermPath(book, name);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, md, "utf-8");
+    reloadTermbase();   // word-popup lookups
+    clearRulesCache();  // AI digest
+    res.json({ book, file: name, saved: true, rows: clean.length });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 

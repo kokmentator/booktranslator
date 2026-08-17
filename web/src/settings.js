@@ -78,6 +78,7 @@ export function initSettings() {
 
   initStyleSliders();
   initAuthorNotes();
+  initTermsEditor();
 
   const show = async (tab) => { await load(); switchTab(tab || "guide"); modal.hidden = false; backdrop.hidden = false; };
   _show = show;
@@ -156,6 +157,77 @@ function initAuthorNotes() {
       status.textContent = `Saved for this book (${d.chars.toLocaleString()} chars) — applies from the next AI request.`;
     } catch (e) { status.textContent = "Save failed — " + e.message; }
   });
+}
+
+/* ---------------- Glossary / slang editor (per book) ---------------- */
+function initTermsEditor() {
+  const wrap = $("termsEditor"), addBtn = $("termsAdd"), saveBtn = $("termsSave"), status = $("termsStatus"), sharedEl = $("termsShared");
+  if (!wrap) return;
+  let file = "glossary";
+
+  const rowHtml = (r = {}) => `<tr class="terms-row">
+    <td><input class="t-src" value="${esc(r.src || "")}" placeholder="source word / phrase"></td>
+    <td><input class="t-tgt" value="${esc(r.tgt || "")}" placeholder="your translation"></td>
+    <td><label class="t-lock"><input type="checkbox" class="t-status" ${/LOCKED/i.test(r.status || "") ? "checked" : ""}> locked</label></td>
+    <td><input class="t-note" value="${esc(r.note || "")}" placeholder="note (optional)"></td>
+    <td><button type="button" class="t-del" title="Remove">×</button></td>
+  </tr>`;
+
+  function render(rows, shared) {
+    wrap.innerHTML = `<table class="terms-table">
+      <thead><tr><th>Source</th><th>Target</th><th>Status</th><th>Note</th><th></th></tr></thead>
+      <tbody>${rows.length ? rows.map(rowHtml).join("") : ""}</tbody>
+    </table>${rows.length ? "" : `<div class="terms-empty">No terms for this book yet — add the first one.</div>`}`;
+    wrap.querySelectorAll(".t-del").forEach((b) => b.addEventListener("click", () => { b.closest("tr").remove(); }));
+    sharedEl.innerHTML = shared && shared.length
+      ? `<h3>Also active (shared, <code>data/style/</code>)</h3><table class="terms-table terms-table--ro"><tbody>` +
+        shared.map((r) => `<tr><td>${esc(r.src)}</td><td>${esc(r.tgt)}</td><td>${esc(r.status || "")}</td><td>${esc(r.note || "")}</td></tr>`).join("") +
+        `</tbody></table>`
+      : "";
+  }
+
+  async function load() {
+    status.textContent = "";
+    try {
+      const d = await (await fetch(`/api/terms${bookQ()}&file=${file}`)).json();
+      render(d.rows || [], d.shared || []);
+    } catch { wrap.textContent = "Glossary unavailable."; }
+  }
+
+  document.querySelectorAll(".terms-tab").forEach((t) => t.addEventListener("click", () => {
+    document.querySelectorAll(".terms-tab").forEach((x) => x.classList.toggle("is-active", x === t));
+    file = t.dataset.tfile; load();
+  }));
+
+  addBtn?.addEventListener("click", () => {
+    const tbody = wrap.querySelector("tbody");
+    if (!tbody) return;
+    tbody.insertAdjacentHTML("beforeend", rowHtml());
+    const tr = tbody.lastElementChild;
+    tr.querySelector(".t-del").addEventListener("click", () => tr.remove());
+    wrap.querySelector(".terms-empty")?.remove();
+    tr.querySelector(".t-src").focus();
+  });
+
+  saveBtn?.addEventListener("click", async () => {
+    const rows = [...wrap.querySelectorAll(".terms-row")].map((tr) => ({
+      src: tr.querySelector(".t-src").value.trim(),
+      tgt: tr.querySelector(".t-tgt").value.trim(),
+      status: tr.querySelector(".t-status").checked ? "LOCKED" : "",
+      note: tr.querySelector(".t-note").value.trim(),
+    })).filter((r) => r.src && r.tgt);
+    status.textContent = "Saving…";
+    try {
+      const d = await (await fetch(`/api/terms${bookQ()}&file=${file}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rows }),
+      })).json();
+      if (d.error) throw new Error(d.error);
+      status.textContent = `Saved ${d.rows} terms — active immediately (popup + every AI call).`;
+      load();
+    } catch (e) { status.textContent = "Save failed — " + e.message; }
+  });
+
+  load();
 }
 
 /* ---------------- Token usage panel ---------------- */

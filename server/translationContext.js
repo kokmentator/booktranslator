@@ -17,6 +17,7 @@ const STYLE_FILES = [
   ["avoid-ai-style.md", 2600, "How NOT to sound machine-translated"],
   ["glossary.md", 4500, "Glossary (names & locked terms — use these exact renderings)"],
   ["idioms.md", 4500, "Idiom log (editor-confirmed choices)"],
+  ["slang.md", 3000, "Slang dictionary (source slang → confirmed rendering — use these exactly)"],
   ["editorial.md", 2500, "Book editorial notes"],
 ];
 const TOTAL_CAP = 16000;

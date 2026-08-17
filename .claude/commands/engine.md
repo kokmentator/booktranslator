@@ -28,11 +28,13 @@ structural quirks (one-word paragraphs, ALL-CAPS, refrains).
 
 Also read the book's `data\<book>\style.config.json` if it exists (else the
 project-wide `data\style.config.json`) — the editor's Style sliders
-(0–100 per key: fidelity, register, rhythm, idiom, swearing, variation). Apply them
-as leanings: low fidelity = literal, high = free; low register = raw, high = literary;
-low rhythm = mirror the source, high = natural target flow; low idiom = neutral,
-high = rich local idiom; low swearing = softened, high = fully uncensored;
-low variation = keep repetition, high = actively vary sentence openings.
+(0–100 per key: fidelity, register, rhythm, idiom, swearing, variation, suggestions).
+Apply them as leanings: low fidelity = literal, high = free; low register = raw,
+high = literary; low rhythm = mirror the source, high = natural target flow;
+low idiom = neutral, high = rich local idiom; low swearing = softened, high = fully
+uncensored; low variation = keep repetition, high = actively vary sentence openings;
+low suggestions = attach suggestion cards only for genuine doubts, high = offer
+alternatives generously (via `exchange\inbox\<segId>.suggest.json`).
 Where a slider conflicts with an older note, the slider wins.
 
 To keep this running automatically, the user runs: `/loop 30s /engine`
