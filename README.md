@@ -6,8 +6,6 @@ translating whole novels, not sentences.
 
 No account, no cloud, no database. One Node process, your files, your machine.
 
-![Translation desk: original right, translation left, suggestions panel]
-
 ## Why it exists
 
 Machine translation gets you a draft. The real work — the voice, the idioms, the
@@ -27,10 +25,10 @@ it — happens in the *editing*. BookTranslator is built around that editing loo
 ## Quick start
 
 ```
-git clone <this repo>
+git clone https://github.com/kokmentator/booktranslator
 cd booktranslator
 npm install
-npm start          # or double-click start.cmd on Windows
+npm start          # or double-click start.cmd (Windows) / run ./start.sh (macOS, Linux)
 ```
 
 Open **http://localhost:4319** — a demo book (Alice in Wonderland, English → Spanish)

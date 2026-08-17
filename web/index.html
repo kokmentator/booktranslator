@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="icon" href="/assets/booktranslator.ico" />
   <link rel="stylesheet" href="/src/styles.css" />
 </head>
 <body>
@@ -25,6 +26,10 @@
       <button id="zoomIn" type="button" title="Larger text (Ctrl +)" aria-label="Larger text">+</button>
     </div>
     <div class="masthead__pos" id="position" aria-live="polite"></div>
+    <div class="savebox" title="Every edit saves automatically the moment you press Enter or click away — this shows the last confirmed save. The button force-commits whatever you're typing right now.">
+      <span class="savebox__state" id="saveState" aria-live="polite"><i class="savebox__dot"></i>All saved</span>
+      <button class="savebox__btn" id="saveNow" type="button">Save</button>
+    </div>
     <button class="masthead__panel" id="settingsBtn" type="button" title="Guide &amp; AI settings">Settings</button>
     <button class="masthead__panel" id="exportBtn" type="button" title="Export a clean .docx of this book's translation">Export</button>
     <a class="masthead__panel" id="datasetLink" href="/training.html" title="Training dataset captured from your editing (SFT / DPO / eval)">Dataset</a>

@@ -27,6 +27,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 const WEB_DIR = path.join(PROJECT_ROOT, "web");
 const PORT = process.env.PORT || 4319;
+// Bind to loopback by default: this is a single-user desktop app holding an API
+// key and book manuscripts — it must not be reachable by the rest of the LAN
+// (café wifi, office network). Set HOST=0.0.0.0 explicitly if you really want that.
+const HOST = process.env.HOST || "127.0.0.1";
 
 // Resolve the active book from ?book=, validated against the registry.
 const bookOf = (req) => {
@@ -433,6 +437,6 @@ for (const b of loadBooks()) {
   if (hasProject(b.id)) startWatcher(b.id);
 }
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`BookTranslator running at http://localhost:${PORT}`);
 });

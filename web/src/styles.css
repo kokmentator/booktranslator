@@ -697,3 +697,23 @@ a.masthead__panel { text-decoration: none; display: inline-block; line-height: n
 .t-del:hover { color: var(--garnet); }
 .terms-empty { color: #8a8578; font-size: .85rem; font-style: italic; padding: .5rem .2rem; }
 .terms-table--ro td { font-size: .85rem; color: #6d6759; border-bottom: 1px solid #eee5d3; padding: .28rem .4rem; }
+
+/* Save indicator + hard save button (masthead) */
+.savebox { display: flex; align-items: center; gap: .45rem; }
+.savebox__state {
+  font-family: var(--f-ui); font-size: .72rem; color: #b9b2a3; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: .35rem; font-variant-numeric: tabular-nums;
+}
+.savebox__dot { width: 7px; height: 7px; border-radius: 50%; background: #7c8a6a; display: inline-block; }
+.savebox__state.is-saving .savebox__dot { background: #b07d34; animation: savepulse 1s ease-in-out infinite; }
+.savebox__state.is-dirty .savebox__dot { background: #b07d34; }
+.savebox__state.is-error { color: #e8b4b4; }
+.savebox__state.is-error .savebox__dot { background: #c0392b; }
+@keyframes savepulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+.savebox__btn {
+  font-family: var(--f-ui); font-size: .72rem; font-weight: 600; letter-spacing: .03em;
+  color: #cfc8ba; background: #1f222b; border: 1px solid #383c47; border-radius: 7px;
+  padding: .34rem .7rem; cursor: pointer; transition: color .15s, border-color .15s;
+}
+.savebox__btn:hover { color: #fff; border-color: #565c68; }
+.savebox__btn:active { background: var(--garnet); color: #fff; border-color: var(--garnet); }

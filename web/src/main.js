@@ -34,6 +34,7 @@ async function init() {
   initSettings();
   initLibrary();
   initUsage();
+  initSaveBox();
   await renderBookTabs();
   try {
     project = await getProject();
@@ -76,6 +77,43 @@ async function init() {
   wireTranslateChapter();
   connectEvents();
   updatePosition();
+}
+
+/* ----------------- save indicator + hard Save button ---------------- */
+// Autosave is real (Enter / click away → PATCH), but people trust a button.
+// The light reports what actually happened: api.js announces every persisting
+// call; the button force-commits the paragraph being typed right now.
+function initSaveBox() {
+  const state = document.getElementById("saveState");
+  const btn = document.getElementById("saveNow");
+  if (!state) return;
+  let dirty = false;
+  const fmt = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const set = (cls, text) => { state.className = "savebox__state " + cls; state.innerHTML = `<i class="savebox__dot"></i>${text}`; };
+
+  window.addEventListener("bt:save", (e) => {
+    if (e.detail === "saving") set("is-saving", "Saving…");
+    else if (e.detail === "saved") { dirty = false; set("is-saved", `All saved · ${fmt()}`); }
+    else set("is-error", "⚠ Save failed — check the server, then press Save");
+  });
+  // typing in a paragraph → honest "not committed yet" state
+  left.addEventListener("input", (e) => {
+    if (e.target.closest?.(".seg")) { dirty = true; set("is-dirty", "Editing — Enter or Save commits"); }
+  });
+
+  btn?.addEventListener("click", () => {
+    const active = document.activeElement;
+    if (active && active.closest?.(".seg,#left") && active.isContentEditable) {
+      active.blur(); // blur handler PATCHes the pending edit → events update the light
+    } else if (dirty) {
+      // an edited paragraph lost focus without committing (shouldn't happen, but belt & braces)
+      set("is-saving", "Saving…");
+      document.querySelectorAll("#left .seg").forEach((el) => el.blur());
+      setTimeout(() => { if (dirty) set("is-saved", `All saved · ${fmt()}`); }, 400);
+    } else {
+      set("is-saved", `All saved · ${fmt()}`); // nothing pending — reassure
+    }
+  });
 }
 
 /* -------------------- AI usage counter (statusbar) ----------------- */

@@ -17,30 +17,44 @@ export async function getProject() {
   return r.json();
 }
 
+// Save-state events for the masthead indicator: every persisting call announces
+// itself, so the "All changes saved" light is driven by what ACTUALLY happened.
+const announce = (state) => window.dispatchEvent(new CustomEvent("bt:save", { detail: state }));
+
 export async function patchSegment(id, targetText, meta) {
-  const r = await fetch(`/api/segment/${id}` + q(), {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ targetText, ...(meta || {}) }),
-  });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({}));
-    throw new Error(err.error || "Save failed");
-  }
-  return r.json();
+  announce("saving");
+  try {
+    const r = await fetch(`/api/segment/${id}` + q(), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetText, ...(meta || {}) }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.error || "Save failed");
+    }
+    const out = await r.json();
+    announce("saved");
+    return out;
+  } catch (e) { announce("error"); throw e; }
 }
 
 export async function decideSegment(id, body) {
-  const r = await fetch(`/api/segment/${id}/decide` + q(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({}));
-    throw new Error(err.error || "Action failed");
-  }
-  return r.json();
+  announce("saving");
+  try {
+    const r = await fetch(`/api/segment/${id}/decide` + q(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.error || "Action failed");
+    }
+    const out = await r.json();
+    announce("saved");
+    return out;
+  } catch (e) { announce("error"); throw e; }
 }
 
 export async function exportBook() {
