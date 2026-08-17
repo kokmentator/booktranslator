@@ -1,0 +1,20 @@
+{
+  "name": "booktranslator",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "description": "Local, single-user, side-by-side book translation editor for any language pair — with an AI engine that learns your house style.",
+  "scripts": {
+    "start": "node server/index.js",
+    "import": "node server/import/importBook.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "chokidar": "^5.0.0",
+    "docx": "^9.7.1",
+    "express": "^4.21.2",
+    "jimp": "^1.6.1",
+    "mammoth": "^1.8.0",
+    "thesaurus": "^0.0.1"
+  }
+}

@@ -1,0 +1,11 @@
+[
+  {
+    "id": "demo",
+    "label": "Alice (demo)",
+    "titleTarget": "Alicia en el País de las Maravillas",
+    "titleSource": "Alice's Adventures in Wonderland",
+    "author": "Lewis Carroll",
+    "sourceLang": "English",
+    "targetLang": "Spanish"
+  }
+]

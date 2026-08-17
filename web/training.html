@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BookTranslator — Training dataset</title>
+  <style>
+    :root { --bg:#faf7f2; --ink:#2a2420; --muted:#7a6f64; --line:#e4dccf; --garnet:#7a2230; --card:#fffdf9; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:"Spectral",Georgia,serif; line-height:1.5; }
+    .wrap { max-width:980px; margin:0 auto; padding:2rem 1.5rem 4rem; }
+    h1 { font-family:"Fraunces","Spectral",Georgia,serif; font-weight:600; margin:0 0 .25rem; }
+    .lede { color:var(--muted); margin:0 0 1.5rem; max-width:62ch; }
+    a.back { color:var(--garnet); text-decoration:none; font-size:.9rem; }
+    .book { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:1.1rem 1.25rem; margin:1rem 0; }
+    .book__head { display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
+    .book__head h2 { font-family:"Fraunces",serif; font-weight:600; margin:0; font-size:1.2rem; }
+    .author { color:var(--muted); font-size:.9rem; }
+    .author--missing { color:var(--garnet); }
+    .stats { display:flex; gap:1.5rem; flex-wrap:wrap; margin:.8rem 0; }
+    .stat b { display:block; font-family:"Fraunces",serif; font-size:1.5rem; }
+    .stat span { color:var(--muted); font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; }
+    table { border-collapse:collapse; width:100%; margin-top:.4rem; font-size:.92rem; }
+    th, td { text-align:left; padding:.35rem .6rem; border-bottom:1px solid var(--line); }
+    th { color:var(--muted); font-weight:600; font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+    .best { color:var(--garnet); font-weight:600; }
+    button { font:inherit; background:var(--garnet); color:#fff; border:0; border-radius:8px; padding:.45rem .9rem; cursor:pointer; }
+    button:disabled { opacity:.5; cursor:default; }
+    .out { color:var(--muted); font-size:.85rem; margin-top:.5rem; min-height:1.2em; }
+    .empty { color:var(--muted); font-style:italic; }
+    .note { background:#fff8e8; border:1px solid #ecdca8; border-radius:8px; padding:.7rem .9rem; font-size:.88rem; margin:.4rem 0 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="/">← back to the editor</a>
+    <h1>Training dataset</h1>
+    <p class="lede">Every editorial decision you make while translating is captured as a permanent,
+      author-tagged training record — literary translation preference data in your language pair —
+      that a fine-tune (or just a sharper eval of the models you already use) can later be built on.
+      Export turns it into ready-to-use <code>sft.jsonl</code> / <code>dpo.jsonl</code> / <code>eval.jsonl</code>.</p>
+    <div id="books"></div>
+  </div>
+
+  <script>
+    const $books = document.getElementById("books");
+
+    function stat(n, label) {
+      return `<div class="stat"><b>${n}</b><span>${label}</span></div>`;
+    }
+    function modelTable(rows) {
+      if (!rows || !rows.length) return `<p class="empty">No machine-draft signal yet — auto-translate a chapter to start measuring which model needs least correction.</p>`;
+      const body = rows.map((r, i) =>
+        `<tr><td class="${i === 0 ? "best" : ""}">${r.model}${i === 0 ? " · best fit" : ""}</td><td>${r.drafts}</td><td>${(r.avgChangeRatio * 100).toFixed(1)}%</td></tr>`).join("");
+      return `<table><thead><tr><th>Model</th><th>Drafts scored</th><th>Avg correction</th></tr></thead><tbody>${body}</tbody></table>`;
+    }
+
+    async function exportBook(id, btn, out) {
+      btn.disabled = true; out.textContent = "Building…";
+      try {
+        const r = await fetch(`/api/export-dataset?book=${encodeURIComponent(id)}`, { method: "POST" });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "failed");
+        out.textContent = `Wrote sft:${d.counts.sft} · dpo:${d.counts.dpo} · eval:${d.counts.eval} → ${d.outDir}`;
+      } catch (e) { out.textContent = "Error — " + e.message; }
+      btn.disabled = false;
+    }
+
+    async function load() {
+      const books = await (await fetch("/api/books")).json();
+      for (const b of books) {
+        let s;
+        try { s = await (await fetch(`/api/training/stats?book=${encodeURIComponent(b.id)}`)).json(); }
+        catch { continue; }
+        const c = s.counts || {};
+        const author = s.author
+          ? `<span class="author">by ${s.author}</span>`
+          : `<span class="author author--missing">⚠ no author set — fill <code>author</code> in data/books.json before bulk translating</span>`;
+        const el = document.createElement("div");
+        el.className = "book";
+        el.innerHTML =
+          `<div class="book__head"><h2>${b.titleEn || b.label}</h2>${author}</div>` +
+          `<div class="stats">${stat(c.sft || 0, "SFT pairs")}${stat(c.dpo || 0, "DPO pairs")}${stat(c.eval || 0, "eval")}${stat(c.approvedFinals || 0, "approved finals")}${stat(c.events || 0, "raw events")}</div>` +
+          modelTable(s.byModel) +
+          `<p style="margin-top:1rem"><button>Export dataset</button> <span class="out"></span></p>`;
+        $books.appendChild(el);
+        const btn = el.querySelector("button"), out = el.querySelector(".out");
+        btn.addEventListener("click", () => exportBook(b.id, btn, out));
+      }
+      if (!$books.children.length) $books.innerHTML = `<p class="empty">No books found.</p>`;
+    }
+    load();
+  </script>
+</body>
+</html>

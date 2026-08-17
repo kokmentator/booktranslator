@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BookTranslator — Translation Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <header class="masthead">
+    <nav class="bookbar" id="bookbar" aria-label="Books"></nav>
+    <div class="masthead__titles">
+      <h1 class="masthead__en" id="titleTarget">BookTranslator</h1>
+      <span class="masthead__sep">/</span>
+      <span class="masthead__cs" id="titleSource"></span>
+    </div>
+    <select class="chapter-select" id="chapterSelect" aria-label="Jump to chapter"></select>
+    <button class="masthead__translate" id="translateChapterBtn" type="button" title="Auto-translate this chapter's untranslated paragraphs (or double-click a chapter heading)"><span class="spin" aria-hidden="true"></span><span id="translateLabel">⤳ Translate chapter</span></button>
+    <div class="masthead__zoom" role="group" aria-label="Text size">
+      <button id="zoomOut" type="button" title="Smaller text (Ctrl -)" aria-label="Smaller text">&minus;</button>
+      <span class="zoom__level" id="zoomLevel" title="Reset text size (Ctrl 0)" role="button" tabindex="0">100%</span>
+      <button id="zoomIn" type="button" title="Larger text (Ctrl +)" aria-label="Larger text">+</button>
+    </div>
+    <div class="masthead__pos" id="position" aria-live="polite"></div>
+    <button class="masthead__panel" id="settingsBtn" type="button" title="Guide &amp; AI settings">Settings</button>
+    <button class="masthead__panel" id="exportBtn" type="button" title="Export a clean .docx of this book's translation">Export</button>
+    <a class="masthead__panel" id="datasetLink" href="/training.html" title="Training dataset captured from your editing (SFT / DPO / eval)">Dataset</a>
+    <button class="masthead__panel" id="panelToggle" type="button" title="Show / hide the side panel" aria-label="Toggle side panel">Panel</button>
+  </header>
+
+  <main class="desk" id="desk">
+    <section class="leaf leaf--target" aria-label="Translation">
+      <div class="leaf__tab">Translation</div>
+      <div class="pane" id="left" tabindex="0"></div>
+    </section>
+
+    <div class="seam" id="seam" aria-hidden="true"></div>
+
+    <section class="leaf leaf--source" aria-label="Original">
+      <div class="leaf__tab">Original</div>
+      <div class="pane" id="right" tabindex="0"></div>
+    </section>
+
+    <aside class="inspector" id="inspector" aria-label="Suggestions and chat">
+      <div class="inspector__tabs" role="tablist">
+        <button class="inspector__tab is-active" data-tab="suggestions" role="tab">Suggestions</button>
+        <button class="inspector__tab" data-tab="chat" role="tab">Chat</button>
+      </div>
+      <div class="inspector__body">
+        <div class="tabpane is-active" id="tab-suggestions" role="tabpanel"></div>
+        <div class="tabpane" id="tab-chat" role="tabpanel">
+          <div class="chat__context" id="chatContext" hidden></div>
+          <div class="chat__thread" id="chatThread"></div>
+          <form class="chat__form" id="chatForm">
+            <textarea id="chatInput" rows="2" placeholder="Discuss this passage with Claude…"></textarea>
+            <button type="submit" id="chatSend">Send</button>
+          </form>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="statusbar">
+    <span class="statusbar__hint" id="hint">Select a paragraph to find it in the other text · Enter saves an edit · Esc cancels</span>
+    <span class="statusbar__legend">
+      <i class="dot dot--accepted"></i>translated
+      <i class="dot dot--suggested"></i>has suggestions
+      <i class="dot dot--edited"></i>edited
+    </span>
+  </footer>
+
+  <div class="manual-backdrop" id="settingsBackdrop" hidden></div>
+  <aside class="manual settings" id="settings" hidden role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="manual__head">
+      <h2>Settings</h2>
+      <button class="manual__x" id="settingsClose" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="settings-tabs" role="tablist">
+      <button class="settings-tab is-active" data-stab="guide" type="button" role="tab">Guide</button>
+      <button class="settings-tab" data-stab="ai" type="button" role="tab">AI provider</button>
+    </div>
+    <div class="manual__body">
+      <!-- GUIDE -->
+      <div class="stabpane is-active" id="stab-guide">
+        <h3>What it does</h3>
+        <ul>
+          <li>Your <b>original book is on the right</b>, the <b>translation on the left</b>, side by side — any language pair (set per book in <code>data\books.json</code>).</li>
+          <li><b>Click into the translation and rewrite it.</b> Press <b>Enter</b> to save — every change is saved automatically.</li>
+          <li><b>Select a sentence</b> on either side and its match on the other side lights up and scrolls into view.</li>
+        </ul>
+
+        <h3>The books (tabs, top-left)</h3>
+        <ul>
+          <li>Switch between imported books any time. Each keeps its own translation, chat, and notes.</li>
+          <li>Add a book with the importer: <code>node server\import\importBook.js mybook manuscript.docx --title "…"</code></li>
+          <li>Use the <b>chapter dropdown</b> to jump around a book.</li>
+        </ul>
+
+        <h3>Finding a better word</h3>
+        <ul>
+          <li><b>Right-click</b> (or <b>double-click</b>) any word in the translation → a popup of options: your locked <b>glossary</b> terms, a <b>thesaurus</b> (English targets only), and the AI's in-context picks. Click one to swap it.</li>
+        </ul>
+
+        <h3>The side panel (right)</h3>
+        <ul>
+          <li><b>Suggestions</b> — the spots where the translation wasn't sure; pick the wording you want.</li>
+          <li><b>Chat</b> — discuss a passage, then click <b>Apply to selection</b> to use it. (Opens automatically when you click a paragraph.)</li>
+        </ul>
+
+        <h3>The other buttons (top bar)</h3>
+        <ul>
+          <li><b>− 100% +</b> — make the text bigger or smaller (also Ctrl +, Ctrl −).</li>
+          <li><b>Export</b> — make a clean <b>Word (.docx)</b> file of the translation.</li>
+          <li><b>Panel</b> — hide or show the side panel.</li>
+        </ul>
+
+        <h3>Where your work is saved</h3>
+        <ul>
+          <li>Every edit saves instantly to <code>data\&lt;book&gt;\project.json</code> (with timestamped backups in <code>data\&lt;book&gt;\backups\</code>).</li>
+          <li>Chat history: <code>data\&lt;book&gt;\chat.jsonl</code></li>
+          <li>Exported Word files: <code>data\&lt;book&gt;\exports\</code></li>
+          <li>House-style rules, glossary &amp; idioms: <code>data\style\</code> (shared) and <code>data\&lt;book&gt;\style\</code> (per book).</li>
+          <li><b>Your original manuscript files are never changed.</b></li>
+        </ul>
+
+        <h3>Starting it (and on another PC)</h3>
+        <ul>
+          <li>Windows: double-click <code>start.cmd</code> in the project folder. Any OS: <code>npm start</code>. It opens at <code>http://localhost:4319</code>.</li>
+          <li><b>On a different PC:</b> the whole app travels in its own folder. Make sure <b>Node.js</b> is installed, then start it the same way — it works from any path or drive letter.</li>
+        </ul>
+
+        <h3>Turning on Claude's live help (chat + synonyms)</h3>
+        <ul>
+          <li>Open a <b>Claude Code session in this app's folder</b> and type <code>/engine</code> to answer waiting requests once, or <code>/loop 30s /engine</code> to keep answering <b>automatically</b> while you work.</li>
+          <li>The command travels with the app, so it's the same on every PC.</li>
+          <li>Or use a <b>different AI</b> on the <b>AI provider</b> tab — then the app answers by itself with no session needed.</li>
+          <li>Without either, your <b>edits, the thesaurus, and the glossary still work instantly</b> — only chat/synonym replies wait.</li>
+        </ul>
+      </div>
+
+      <!-- AI PROVIDER -->
+      <div class="stabpane" id="stab-ai">
+        <p class="settings__intro">Pick a provider, paste an API key, then switch it on for Synonyms and/or Chat. Anything left <b>off</b> keeps using the built-in <b>Claude</b> session. The key is saved on this PC/USB in <code>data\engine.config.json</code>.</p>
+
+        <label class="settings__row"><span>Provider</span>
+          <select id="setProvider"></select></label>
+        <label class="settings__row"><span>API key</span>
+          <input id="setKey" type="password" placeholder="paste API key" autocomplete="off"></label>
+        <label class="settings__row"><span>Model <i>(optional)</i></span>
+          <input id="setModel" type="text" placeholder="preset default"></label>
+        <label class="settings__row"><span>Base URL <i>(optional)</i></span>
+          <input id="setBaseUrl" type="text" placeholder="preset default"></label>
+
+        <div class="settings__toggles">
+          <label class="settings__toggle"><input type="checkbox" id="setSyn"> Use this AI for <b>Synonyms</b></label>
+          <label class="settings__toggle"><input type="checkbox" id="setChat"> Use this AI for <b>Chat</b></label>
+        </div>
+
+        <div class="settings__actions">
+          <button class="btn-primary" id="setSave" type="button">Save</button>
+          <span class="settings__status" id="setStatus"></span>
+        </div>
+
+        <p class="settings__note"><b>Free options:</b> Zhipu GLM Flash, Google Gemini Flash, Groq, OpenRouter, Mistral, Cerebras (all marked FREE). Cheap paid: DeepSeek-V4, Kimi K2.7, GLM-5.2. Your chat history is saved the same way, whichever AI answers. For China endpoints, override the Base URL (<code>open.bigmodel.cn</code> / <code>api.moonshot.cn</code>).</p>
+      </div>
+    </div>
+  </aside>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
