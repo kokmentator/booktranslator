@@ -24,6 +24,14 @@ Before translating or proposing wording, READ the house-style files in `data\sty
 and `data\<book>\style\` — especially `house-style.md` (the non-negotiable rules),
 `voice.md`, `avoid-ai-style.md`, `glossary.md` and `idioms.md` — and apply them
 EXACTLY: locked glossary terms verbatim, never elevate the language, preserve
-structural quirks (one-word paragraphs, ALL-CAPS, refrains), vary sentence openings.
+structural quirks (one-word paragraphs, ALL-CAPS, refrains).
+
+Also read `data\style.config.json` if it exists — the editor's Style sliders
+(0–100 per key: fidelity, register, rhythm, idiom, swearing, variation). Apply them
+as leanings: low fidelity = literal, high = free; low register = raw, high = literary;
+low rhythm = mirror the source, high = natural target flow; low idiom = neutral,
+high = rich local idiom; low swearing = softened, high = fully uncensored;
+low variation = keep repetition, high = actively vary sentence openings.
+Where a slider conflicts with an older note, the slider wins.
 
 To keep this running automatically, the user runs: `/loop 30s /engine`

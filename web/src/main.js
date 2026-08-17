@@ -5,7 +5,7 @@ import { getProject, patchSegment, getBooks, currentBook, exportBook, translateC
 import { initZoom } from "./zoom.js";
 import { initInspector, setActive as inspectorSetActive, onServerEvent, activateChat } from "./inspector.js";
 import { initSynonyms, synonymsFromPoint, synonymsFromSelection, onSynonymsEvent } from "./synonyms.js";
-import { initSettings } from "./settings.js";
+import { initSettings, openSettings } from "./settings.js";
 import { initLibrary, openLibrary } from "./library.js";
 
 const left = document.getElementById("left");
@@ -33,6 +33,7 @@ async function init() {
   initZoom();
   initSettings();
   initLibrary();
+  initUsage();
   await renderBookTabs();
   try {
     project = await getProject();
@@ -75,6 +76,26 @@ async function init() {
   wireTranslateChapter();
   connectEvents();
   updatePosition();
+}
+
+/* -------------------- AI usage counter (statusbar) ----------------- */
+function fmtTokens(n) {
+  n = n || 0;
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + "k";
+  return String(n);
+}
+function renderUsageCounter(u) {
+  const el = document.getElementById("usageCounter");
+  if (!el || !u) return;
+  const tok = (u.inputTokens || 0) + (u.outputTokens || 0);
+  el.hidden = !(u.calls > 0);
+  el.textContent = `⛁ ${fmtTokens(tok)} tokens · ${u.calls} calls`;
+}
+function initUsage() {
+  const el = document.getElementById("usageCounter");
+  if (el) el.addEventListener("click", () => openSettings("ai"));
+  (async () => { try { renderUsageCounter(await (await fetch("/api/usage")).json()); } catch {} })();
 }
 
 /* ----------------------- auto-translate chapter ------------------- */
@@ -478,6 +499,7 @@ function connectEvents() {
     });
     es.addEventListener("chat-message", (e) => onServerEvent("chat-message", JSON.parse(e.data)));
     es.addEventListener("synonyms", (e) => onSynonymsEvent(JSON.parse(e.data)));
+    es.addEventListener("usage", (e) => renderUsageCounter(JSON.parse(e.data)));
     es.addEventListener("chapter-translated", (e) => {
       const d = JSON.parse(e.data);
       endTranslating();

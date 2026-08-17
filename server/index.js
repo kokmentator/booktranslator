@@ -17,6 +17,8 @@ import { llmSynonyms, llmChat } from "./llm.js";
 import { translateItems } from "./translate.js";
 import { buildRulesDigest, rulesVersion, clearRulesCache } from "./translationContext.js";
 import { importManuscript, slugFromTitle } from "./import/importCore.js";
+import { getUsage, resetUsage } from "./usage.js";
+import { loadStyle, saveStyle, STYLE_SLIDERS } from "./styleConfig.js";
 import { appendEvent } from "./training/events.js";
 import { exportDataset, datasetStats } from "./training/exportDataset.js";
 
@@ -193,6 +195,7 @@ app.post("/api/synonyms/ask", async (req, res) => {
       try {
         const options = await llmSynonyms(ext, word, context, languagesFor(bookById(book)));
         broadcast(book, "synonyms", { word, options, reqId: rid, via: ext.provider });
+        broadcast(book, "usage", getUsage());
       } catch (e) {
         broadcast(book, "synonyms", { word, options: [], reqId: rid, error: String(e.message || e) });
       }
@@ -253,6 +256,7 @@ app.post("/api/translate-chapter", async (req, res) => {
         saveProject(book, fresh);
         for (const seg of done) broadcast(book, "segment-updated", { id: seg.id, status: seg.status, targetText: seg.targetText });
         broadcast(book, "chapter-translated", { chapterId, filled: done.length, total: items.length, via: provider.provider });
+        broadcast(book, "usage", getUsage());
       } catch (e) {
         broadcast(book, "chapter-translated", { chapterId, error: String(e.message || e) });
       }
@@ -267,6 +271,20 @@ app.post("/api/translate-chapter", async (req, res) => {
   } catch (e) {
     if (!res.headersSent) res.status(500).json({ error: String(e.message || e) });
   }
+});
+
+// --- AI token/cost usage ---
+app.get("/api/usage", (req, res) => res.json(getUsage()));
+app.post("/api/usage/reset", (req, res) => res.json(resetUsage()));
+
+// --- Translation style sliders ---
+app.get("/api/style", (req, res) => res.json({ values: loadStyle(), sliders: STYLE_SLIDERS }));
+app.post("/api/style", (req, res) => {
+  try {
+    const values = saveStyle(req.body || {});
+    clearRulesCache(); // style is baked into the rules digest — rebuild on next AI call
+    res.json({ values, sliders: STYLE_SLIDERS });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
 // --- Engine config (which AI answers Synonyms / Chat) ---
@@ -309,6 +327,7 @@ app.post("/api/chat", async (req, res) => {
           proposedText: proposedText || null, segmentId: segmentId || null, ts: new Date().toISOString() };
         appendChat(book, aiTurn);
         broadcast(book, "chat-message", aiTurn);
+        broadcast(book, "usage", getUsage());
       } catch (e) {
         const errTurn = { role: "claude", via: ext.provider, text: `(${ext.provider} error — ${String(e.message || e)})`, ts: new Date().toISOString() };
         appendChat(book, errTurn);

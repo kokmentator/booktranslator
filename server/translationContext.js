@@ -8,6 +8,7 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import { styleFiles, languagesFor } from "./config.js";
 import { bookById } from "./registry.js";
+import { styleDigest } from "./styleConfig.js";
 
 // filename -> per-file character cap (keeps the system prompt bounded)
 const STYLE_FILES = [
@@ -50,6 +51,8 @@ export function buildRulesDigest(bookId) {
 
   let digest = parts.join("\n");
   if (digest.length > TOTAL_CAP) digest = digest.slice(0, TOTAL_CAP) + "\n…(truncated)";
+  // The in-app Style sliders always ride along (and win over older notes above).
+  digest += "\n\n" + styleDigest();
   cache.set(bookId, digest);
   return digest;
 }

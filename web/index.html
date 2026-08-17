@@ -65,6 +65,7 @@
 
   <footer class="statusbar">
     <span class="statusbar__hint" id="hint">Select a paragraph to find it in the other text · Enter saves an edit · Esc cancels</span>
+    <button class="statusbar__usage" id="usageCounter" type="button" title="AI tokens used this run — click for a breakdown" hidden>—</button>
     <span class="statusbar__legend">
       <i class="dot dot--accepted"></i>translated
       <i class="dot dot--suggested"></i>has suggestions
@@ -126,6 +127,7 @@
     <div class="settings-tabs" role="tablist">
       <button class="settings-tab is-active" data-stab="guide" type="button" role="tab">Guide</button>
       <button class="settings-tab" data-stab="ai" type="button" role="tab">AI provider</button>
+      <button class="settings-tab" data-stab="style" type="button" role="tab">Style</button>
     </div>
     <div class="manual__body">
       <!-- GUIDE -->
@@ -210,6 +212,30 @@
         </div>
 
         <p class="settings__note"><b>Free options:</b> Zhipu GLM Flash, Google Gemini Flash, Groq, OpenRouter, Mistral, Cerebras (all marked FREE). Cheap paid: DeepSeek-V4, Kimi K2.7, GLM-5.2. Your chat history is saved the same way, whichever AI answers. For China endpoints, override the Base URL (<code>open.bigmodel.cn</code> / <code>api.moonshot.cn</code>).</p>
+
+        <h3 class="settings__usageTitle">Token usage</h3>
+        <div class="settings__usage" id="usagePanel">No AI calls yet.</div>
+        <div class="settings__actions">
+          <button class="btn-ghost" id="usageReset" type="button">Reset counter</button>
+          <span class="settings__status" id="usageResetStatus"></span>
+        </div>
+        <p class="settings__note">Token counts come from the provider's own responses, so you can see how much
+          work the AI is doing for your book. Per-model pricing varies, so cost isn't estimated here.</p>
+      </div>
+
+      <!-- TRANSLATION STYLE -->
+      <div class="stabpane" id="stab-style">
+        <p class="settings__intro">Tune how the AI translates and suggests wording — the author's tone, register
+          and rhythm. These preferences are added to the house-style rules for <b>every</b> AI call
+          (chat, synonyms, chapter translation) — and where they conflict with older notes, <b>the sliders win</b>.</p>
+        <div id="styleSliders"></div>
+        <div class="settings__actions">
+          <button class="btn-primary" id="styleSave" type="button">Save</button>
+          <button class="btn-ghost" id="styleDefaults" type="button">Back to defaults</button>
+          <span class="settings__status" id="styleStatus"></span>
+        </div>
+        <p class="settings__note">Takes effect from the next AI request — no restart needed. The locked house rules
+          (glossary terms, names policy, structural quirks in <code>data/style/</code>) always still apply.</p>
       </div>
     </div>
   </aside>

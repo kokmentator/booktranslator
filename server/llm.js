@@ -1,5 +1,7 @@
 // Minimal OpenAI-compatible chat client. Works for any provider that accepts the
 // standard /chat/completions request (DeepSeek, Zhipu GLM, Moonshot Kimi, etc.).
+import { recordUsage } from "./usage.js";
+
 export async function chatComplete(cfg, { system, user, maxTokens = 700, temperature = 0.4 }) {
   const url = cfg.baseUrl.replace(/\/$/, "") + (cfg.path || "/chat/completions");
   const body = {
@@ -22,6 +24,14 @@ export async function chatComplete(cfg, { system, user, maxTokens = 700, tempera
     throw new Error(`${cfg.provider || "provider"} ${r.status}: ${t.slice(0, 180)}`);
   }
   const data = await r.json();
+  // Track how much work the AI is doing (tokens per provider; cost unknown here).
+  const u = data.usage || {};
+  recordUsage({
+    provider: cfg.provider || "openai",
+    inputTokens: u.prompt_tokens || 0,
+    outputTokens: u.completion_tokens || 0,
+    costUsd: 0,
+  });
   return data.choices?.[0]?.message?.content ?? "";
 }
 

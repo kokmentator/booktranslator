@@ -8,6 +8,9 @@ node_modules/
 *.pem
 # Holds your API key — never commit it
 data/engine.config.json
+# Per-user runtime preferences / counters
+data/style.config.json
+data/usage.json
 
 # Claude local settings
 .claude/settings.local.json
