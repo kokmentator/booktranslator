@@ -38,15 +38,22 @@ is included so you can try the whole workflow immediately.
 
 ## Import your own book
 
+Click the **"+" tab** (top-left) — it opens **Your books**: an overview of every
+book with its language pair and translation progress, plus an *Add a book* form.
+Pick a `.docx`, `.md` or `.txt` manuscript, set the title and the
+translate-from/into languages, done.
+
+The same import works from the command line:
+
 ```
 node server/import/importBook.js mybook path/to/manuscript.docx \
   --title "Working Title" --author "Author Name" \
   --source-lang German --target-lang English
 ```
 
-`.docx`, `.md` and `.txt` manuscripts work. Chapters are detected from headings
-("Chapter 7", "Kapitel 7", "Capítulo 7", `# Heading`, ALL-CAPS lines…). Every
-paragraph imports untranslated; the app is where the translation happens.
+Chapters are detected from headings ("Chapter 7", "Kapitel 7", "Capítulo 7",
+`# Heading`, ALL-CAPS lines…). Every paragraph imports untranslated; the app is
+where the translation happens.
 
 Language pairs are per-book (`data/books.json`); the project-wide default lives
 in `data/config.json`.
