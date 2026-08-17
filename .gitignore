@@ -10,6 +10,7 @@ node_modules/
 data/engine.config.json
 # Per-user runtime preferences / counters
 data/style.config.json
+data/*/style.config.json
 data/usage.json
 
 # Claude local settings

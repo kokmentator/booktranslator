@@ -1,12 +1,17 @@
-// Translation-style preferences, set with sliders in Settings → Style and stored
-// in data/style.config.json. Each value 0–100 is turned into a plain-language
-// directive that is appended to the house-style digest for every AI call
-// (chat, synonyms, translate-chapter) — and readable by the file-protocol engine.
+// Translation-style preferences, set with sliders in Settings → Style.
+// PER BOOK: each book stores its own data/<book>/style.config.json — a story
+// collection can run raw and uncensored while a literary novel on the same desk
+// runs polished. data/style.config.json (no book) acts as the project-wide
+// default for books that haven't saved their own yet. Each value 0–100 is
+// turned into a plain-language directive appended to the house-style digest for
+// every AI call (chat, synonyms, translate-chapter) — and readable by the
+// file-protocol engine.
 import fs from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "./config.js";
 
-const FILE = path.join(DATA_DIR, "style.config.json");
+const globalFile = () => path.join(DATA_DIR, "style.config.json");
+const bookFile = (bookId) => bookId ? path.join(DATA_DIR, bookId, "style.config.json") : globalFile();
 
 // key -> { label, low end, high end, default }
 export const STYLE_SLIDERS = {
@@ -20,26 +25,33 @@ export const STYLE_SLIDERS = {
 
 const defaults = () => Object.fromEntries(Object.entries(STYLE_SLIDERS).map(([k, v]) => [k, v.def]));
 
-export function loadStyle() {
-  try {
-    const saved = JSON.parse(fs.readFileSync(FILE, "utf-8"));
-    const clean = defaults();
-    for (const k of Object.keys(clean)) {
-      const n = Number(saved[k]);
-      if (Number.isFinite(n)) clean[k] = Math.max(0, Math.min(100, Math.round(n)));
-    }
-    return clean;
-  } catch { return defaults(); }
+function readValues(file) {
+  const saved = JSON.parse(fs.readFileSync(file, "utf-8"));
+  const clean = defaults();
+  for (const k of Object.keys(clean)) {
+    const n = Number(saved[k]);
+    if (Number.isFinite(n)) clean[k] = Math.max(0, Math.min(100, Math.round(n)));
+  }
+  return clean;
 }
 
-export function saveStyle(next) {
-  const merged = { ...loadStyle() };
+// Book's own file → project-wide default file → built-in defaults.
+export function loadStyle(bookId) {
+  try { return readValues(bookFile(bookId)); } catch {}
+  try { return readValues(globalFile()); } catch {}
+  return defaults();
+}
+
+// Saving from a book's Settings writes THAT book's file only.
+export function saveStyle(bookId, next) {
+  const merged = { ...loadStyle(bookId) };
   for (const k of Object.keys(STYLE_SLIDERS)) {
     const n = Number(next?.[k]);
     if (Number.isFinite(n)) merged[k] = Math.max(0, Math.min(100, Math.round(n)));
   }
-  fs.mkdirSync(path.dirname(FILE), { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(merged, null, 2), "utf-8");
+  const file = bookFile(bookId);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(merged, null, 2), "utf-8");
   return merged;
 }
 
@@ -91,9 +103,9 @@ const WORDING = {
   ],
 };
 
-export function styleDigest() {
-  const s = loadStyle();
+export function styleDigest(bookId) {
+  const s = loadStyle(bookId);
   const lines = Object.keys(STYLE_SLIDERS).map((k) =>
     `- ${STYLE_SLIDERS[k].label} (${s[k]}/100): ${pick(s[k], WORDING[k])}`);
-  return "=== Editor style preferences (Style sliders — set in-app; where these conflict with older notes above, the sliders win) ===\n" + lines.join("\n");
+  return "=== Editor style preferences for THIS book (Style sliders — set in-app; where these conflict with older notes above, the sliders win) ===\n" + lines.join("\n");
 }

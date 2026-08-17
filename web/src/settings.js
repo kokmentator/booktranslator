@@ -1,6 +1,10 @@
 // Settings modal: Guide, AI provider (+ token usage), and translation Style sliders.
+// Style is PER BOOK — the sliders read/save the book currently open on the desk.
 // Anything off falls back to the built-in Claude session path.
+import { currentBook } from "./api.js";
+
 const $ = (id) => document.getElementById(id);
+const bookQ = () => "?book=" + encodeURIComponent(currentBook());
 
 let _show = null;
 // Open the Settings modal on a given tab ("guide" | "ai" | "style") from elsewhere.
@@ -109,7 +113,7 @@ function initStyleSliders() {
 
   (async () => {
     try {
-      const d = await (await fetch("/api/style")).json();
+      const d = await (await fetch("/api/style" + bookQ())).json();
       meta = d.sliders || {};
       render(d.values || {});
     } catch { wrap.textContent = "Style settings unavailable."; }
@@ -118,11 +122,11 @@ function initStyleSliders() {
   save?.addEventListener("click", async () => {
     status.textContent = "Saving…";
     try {
-      const d = await (await fetch("/api/style", {
+      const d = await (await fetch("/api/style" + bookQ(), {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(currentValues()),
       })).json();
       render(d.values || {});
-      status.textContent = "Saved — applies from the next AI request.";
+      status.textContent = "Saved for this book — applies from the next AI request.";
     } catch { status.textContent = "Save failed."; }
   });
   defaultsBtn?.addEventListener("click", () => {

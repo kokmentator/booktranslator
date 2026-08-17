@@ -51,8 +51,8 @@ export function buildRulesDigest(bookId) {
 
   let digest = parts.join("\n");
   if (digest.length > TOTAL_CAP) digest = digest.slice(0, TOTAL_CAP) + "\n…(truncated)";
-  // The in-app Style sliders always ride along (and win over older notes above).
-  digest += "\n\n" + styleDigest();
+  // This book's Style sliders always ride along (and win over older notes above).
+  digest += "\n\n" + styleDigest(bookId);
   cache.set(bookId, digest);
   return digest;
 }

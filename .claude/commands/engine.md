@@ -26,7 +26,8 @@ and `data\<book>\style\` — especially `house-style.md` (the non-negotiable rul
 EXACTLY: locked glossary terms verbatim, never elevate the language, preserve
 structural quirks (one-word paragraphs, ALL-CAPS, refrains).
 
-Also read `data\style.config.json` if it exists — the editor's Style sliders
+Also read the book's `data\<book>\style.config.json` if it exists (else the
+project-wide `data\style.config.json`) — the editor's Style sliders
 (0–100 per key: fidelity, register, rhythm, idiom, swearing, variation). Apply them
 as leanings: low fidelity = literal, high = free; low register = raw, high = literary;
 low rhythm = mirror the source, high = natural target flow; low idiom = neutral,
